@@ -5,8 +5,8 @@ from time import sleep
 import pygame
 
 
-def load_image(x, y, x2, y2, colorkey=-1):
-    image = pygame.image.load(os.path.join('data', 'pac.png'))
+def load_image(x, y, x2, y2, file='pac.png', colorkey=-1):
+    image = pygame.image.load(os.path.join('data', file))
     cropped = pygame.Surface((x2 - x, y2 - y))
     cropped.blit(image, (0, 0), (x, y, x2, y2))
 
@@ -17,7 +17,7 @@ def load_image(x, y, x2, y2, colorkey=-1):
         image.set_colorkey(colorkey)
     else:
         image = image.convert_alpha()
-    image = pygame.transform.scale(image, (CELL - 2, CELL - 2))
+    image = pygame.transform.scale(image, (CELL, CELL))
     return image
 
 
@@ -41,6 +41,15 @@ def Enemies_walk():
             x += 170
         x = 50
         y += 160
+    x, y = 5, 445
+    for i2 in range(2):
+        for j2 in range(8):
+            if i2 == 0 or (i2 == 1 and j2 in [0, 1, 2, 3]):
+                death_pacman.append(load_image(x, y, x + 55, y + 65, 'death_pac.png'))
+            x += 70
+        x = 5
+        y += 65
+
     walk_BLINKY = [[walk_BLINKY[0], walk_BLINKY[1]], [walk_BLINKY[2], walk_BLINKY[3]],
                    [walk_BLINKY[4], walk_BLINKY[5]], [walk_BLINKY[6], walk_BLINKY[7]]]
     walk_PINKY = [[walk_PINKY[0], walk_PINKY[1]], [walk_PINKY[2], walk_PINKY[3]],
@@ -109,13 +118,16 @@ class Player(pygame.sprite.Sprite):
         super().__init__(all_sprites)
         self.image = pygame.Surface((CELL, CELL))
         self.rect = pygame.Rect(x * CELL, y * CELL, CELL, CELL)
+        self.states()
 
+    def states(self):
         self.points = 0
         self.energy = False
         self.time_energy = 0
         self.end = False
-        self.time_end = 5
+        self.time_end = 0
         self.animCount = 0
+        self.animCountdeath = 0
         self.speed = 5
 
     def moveX(self, xvel):
@@ -159,15 +171,15 @@ class Player(pygame.sprite.Sprite):
                 course_t = None
 
     def update(self):
-        global all_results, start
+        global all_results, new_start
         self.animation()
         if self.energy:
             self.time_energy -= 0.1
             if self.time_energy <= 0:
                 self.energy = False
         if len(point) == 0 and len(energy_point) == 0:
-            all_results += self.results()
-            start = False
+            all_results += self.number_of_points()
+            new_start = False
             Start_game()
         if course_t == 'left' or course == 'left':
             self.moveX(-self.speed)
@@ -195,7 +207,7 @@ class Player(pygame.sprite.Sprite):
         if self.animCount + 1 >= 20:
             self.animCount = 0
         if self.end:
-            self.animation_end()
+            self.death_animation()
         else:
             if course == 'left':
                 walk_L = [pygame.transform.rotate(i, 180) for i in walk]
@@ -213,23 +225,21 @@ class Player(pygame.sprite.Sprite):
                 self.image.blit(walk_DOWN[self.animCount // 5], (0, 0))
                 self.animCount += 1
 
-    def animation_end(self):
-        global lives, start, all_results
-        self.time_end -= 0.1
-        if int(self.time_end) % 2 == 0:
-            self.image.blit(walk[0], (0, 0))
-        elif int(self.time_end) < 0:
-            all_results += self.results()
+    def death_animation(self):
+        global lives, new_start, all_results
+        if self.animCountdeath + 1 >= 60:
+            all_results += self.number_of_points()
             lives -= 1
-            start = False
+            new_start = False
             Start_game()
         else:
-            self.image.fill('black')
+            self.image.blit(death_pacman[self.animCountdeath // 5], (0, 0))
+            self.animCountdeath += 1
 
-    def results(self):
+    def number_of_points(self):
         return self.points
 
-    def checking_energy(self):
+    def checking_pacman_energy(self):
         return self.energy, self.time_energy
 
 
@@ -248,16 +258,16 @@ class Ghost(pygame.sprite.Sprite):
         self.speed = 5
         self.course = 'left'
         self.pasive = True
-        self.time_prison = 0
+        self.time_into_prison = 0
 
     def update(self):
         self.animation()
-        if self.time_prison:
-            self.time_prison -= 0.1
-            if self.time_prison < 1:
-                self.new_pos(9, 10)
+        if self.time_into_prison:
+            self.time_into_prison -= 0.1
+            if self.time_into_prison < 1:
+                self.release_from_prison(9, 10)
                 self.pasive = False
-                self.time_prison = 0
+                self.time_into_prison = 0
 
         if self.course == 'left':
             self.move(-self.speed, 0)
@@ -268,8 +278,8 @@ class Ghost(pygame.sprite.Sprite):
         elif self.course == 'down':
             self.move(0, self.speed)
 
-        if pygame.sprite.spritecollide(player, ghosts, False) and player.checking_energy()[0]:  # Призрак поймал
-            self.prison()
+        if pygame.sprite.spritecollide(player, ghosts, False) and player.checking_pacman_energy()[0]:  # Призрак поймал
+            self.into_prison()
 
     def move(self, xvel, yvel):
         collideList = map
@@ -300,13 +310,13 @@ class Ghost(pygame.sprite.Sprite):
         self.image.fill('black')
         if self.animCount + 1 >= 10:
             self.animCount = 0
-        if player.checking_energy()[0] and not self.pasive:  # Режим испуга
+        if player.checking_pacman_energy()[0] and not self.pasive:  # Режим испуга
             self.speed = 3
-            if player.checking_energy()[1] >= 10:
+            if player.checking_pacman_energy()[1] >= 10:
                 self.image.blit(wall_charged[0][self.animCount // 5], (0, 0))
                 self.animCount += 1
             else:
-                if int(player.checking_energy()[1]) % 2 == 0:
+                if int(player.checking_pacman_energy()[1]) % 2 == 0:
                     self.image.blit(wall_charged[1][self.animCount // 5], (0, 0))
                     self.animCount += 1
                 else:
@@ -328,17 +338,19 @@ class Ghost(pygame.sprite.Sprite):
                 self.image.blit(self.anim[1][self.animCount // 5], (0, 0))
                 self.animCount += 1
 
-    def new_pos(self, x, y):
+    def release_from_prison(self, x, y):
         self.pasive = False
         self.course = 'up'
         self.rect = pygame.Rect(x * CELL, y * CELL, CELL, CELL)
 
-    def prison(self):
+    def into_prison(self):
         self.pasive = True
-        self.time_prison = 20
+        self.time_into_prison = 20
         self.rect = pygame.Rect(8 * CELL, 10 * CELL, CELL, CELL)
 
+
 def button(x, y, text, s):
+    '''Создание кнопки'''
     global intro, running
     mouse = pygame.mouse.get_pos()
     click = pygame.mouse.get_pressed()[0]
@@ -357,8 +369,9 @@ def button(x, y, text, s):
 
 
 def footer():
+    '''Отрисовка счета частиц, количество жизней'''
     font = pygame.font.Font("data\\fonts.ttf", 30)
-    text = font.render(f"SCRORE: {player.results() + all_results}", True, [255, 255, 255])
+    text = font.render(f"SCRORE: {player.number_of_points() + all_results}", True, [255, 255, 255])
     screen.blit(text, (10, 670))
 
     text2 = font.render("LIVES", True, [255, 255, 255])
@@ -372,14 +385,16 @@ def footer():
 
 
 def Start_game():
-    global player, Blinky, Pinky, Inky, Clyde, map,\
+    '''Завршение при отсутсвии жизней, начальный запуск, отрисовка карты с старыми значениями
+     при присутсвии жизней, перезапуск после сбора всех частиц'''
+    global player, Blinky, Pinky, Inky, Clyde, map, \
         running, restart, course, course_t, lives, all_results, time_en
 
     if lives == 0:
         restart = True
         running = False
 
-    if start:
+    if new_start:
         for i in all_sprites:
             i.kill()
         all_results = 0
@@ -390,7 +405,7 @@ def Start_game():
         for i in ghosts:
             i.kill()
         player.kill()
-    if not start and len(point) == 0:
+    if not new_start and len(point) == 0:
         map = Board('data\map.txt')
 
     time_en = 0
@@ -403,7 +418,9 @@ def Start_game():
     Inky = Ghost(9, 10, walk_INKY)
     Clyde = Ghost(10, 10, walk_CLYDE)
 
+
 def timer(number):
+    '''Отсчет при начале игры'''
     font = pygame.font.Font("data\\fonts_i.ttf", 50)
     text = font.render(str(number), True, [255, 48, 48])
     image = pygame.Surface((CELL, CELL * 2))
@@ -415,7 +432,7 @@ def timer(number):
 
 
 def Cycle():
-    global intro, running, restart, time_en, course_t, cyc, start, time_en
+    global intro, running, restart, time_en, course_t, cyc, new_start, time_en
 
     while intro:
         for event in pygame.event.get():
@@ -423,7 +440,7 @@ def Cycle():
                 intro = False
                 cyc = False
             if button(210, 200, 'PLAY', 60) is True:
-                start = True
+                new_start = True
                 Start_game()
                 intro = False
                 running = True
@@ -458,14 +475,14 @@ def Cycle():
             # Выход призраков
 
             if time_en == 200:
-                Pinky.new_pos(9, 10)
+                Pinky.release_from_prison(9, 10)
             if time_en == 400:
-                Inky.new_pos(9, 10)
+                Inky.release_from_prison(9, 10)
             if time_en == 600:
-                Clyde.new_pos(9, 10)
+                Clyde.release_from_prison(9, 10)
             # Сетка
             screen.fill(pygame.Color("black"))
-            #[pygame.draw.rect(screen, (40, 40, 40), i_rect, 1) for i_rect in grid]
+            # [pygame.draw.rect(screen, (40, 40, 40), i_rect, 1) for i_rect in grid]
             # Клетки
             all_sprites.draw(screen)
             all_sprites.update()
@@ -483,7 +500,7 @@ def Cycle():
                 restart = False
 
             if button(180, 300, 'RESTART', 60):
-                start = True
+                new_start = True
                 Start_game()
                 restart = False
                 running = True
@@ -508,7 +525,7 @@ if __name__ == '__main__':
     pygame.display.set_caption('Pacman')
 
     screen = pygame.display.set_mode(size)
-    #grid = [pygame.Rect(x * CELL, y * CELL, CELL, CELL) for x in range(w) for y in range(h)]
+    # grid = [pygame.Rect(x * CELL, y * CELL, CELL, CELL) for x in range(w) for y in range(h)]
 
     # Анимации
     walk = [load_image(30, 10, 160, 140), load_image(190, 10, 310, 140),
@@ -519,6 +536,7 @@ if __name__ == '__main__':
     walk_CLYDE = []
     wall_charged = [[load_image(390, 640, 530, 780), load_image(560, 640, 700, 780)],
                     [load_image(730, 640, 870, 780), load_image(900, 640, 1040, 780)]]
+    death_pacman = []
     Enemies_walk()
 
     # Спрайты
@@ -532,8 +550,7 @@ if __name__ == '__main__':
     course, course_t = 'left', None
     lives = 3
 
-
-    start = True
+    new_start = True
     Start_game()
 
     time_en = 0
