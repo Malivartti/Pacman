@@ -1,26 +1,10 @@
 import os
 from random import choice
 
+import arcade as arcade
 import pygame
 
-w, h = 19, 22
-CELL = 30
-size = w * CELL, h * CELL + 50
-pygame.init()
-pygame.display.set_caption('Pacman')
 
-screen = pygame.display.set_mode(size)
-grid = [pygame.Rect(x * CELL, y * CELL, CELL, CELL) for x in range(w) for y in range(h)]
-# Спрайты
-borders = pygame.sprite.Group()
-point = pygame.sprite.Group()
-energy_porint = pygame.sprite.Group()
-enemies = pygame.sprite.Group()
-all_sprites = pygame.sprite.Group()
-
-row, col = 9 * CELL, 16 * CELL
-course, course_t = 'left', None
-lives = 3
 
 
 def load_image(x, y, x2, y2, colorkey=-1):
@@ -37,7 +21,6 @@ def load_image(x, y, x2, y2, colorkey=-1):
         image = image.convert_alpha()
     image = pygame.transform.scale(image, (CELL - 2, CELL - 2))
     return image
-
 
 
 def Enemies_walk():
@@ -70,16 +53,7 @@ def Enemies_walk():
                   [walk_CLYDE[4], walk_CLYDE[5]], [walk_CLYDE[6], walk_CLYDE[7]]]
 
 
-walk = [load_image(30, 10, 160, 140), load_image(190, 10, 310, 140),
-        load_image(330, 10, 460, 140), load_image(190, 10, 310, 140)]
 
-walk_BLINKY = []
-walk_PINKY = []
-walk_INKY = []
-walk_CLYDE = []
-wall_charged = [[load_image(390, 640, 530, 780), load_image(560, 640, 700, 780)],
-                [load_image(730, 640, 870, 780), load_image(900, 640, 1040, 780)]]
-Enemies_walk()
 
 
 class Border(pygame.sprite.Sprite):
@@ -135,7 +109,7 @@ def Board(filename):
     return lis
 
 
-map = Board('map.txt')
+
 
 
 class Player(pygame.sprite.Sprite):
@@ -152,46 +126,62 @@ class Player(pygame.sprite.Sprite):
         self.animCount = 0
         self.speed = 5
 
-    def move(self, xvel, yvel):
-        global course
+    def moveX(self, xvel):
+        global course, course_t
         collideList = map
         self.rect.x += xvel
+        flag = True
         for block in collideList:
             if self.rect.colliderect(block):
                 if xvel < 0:
                     self.rect.left = block.right
                 elif xvel > 0:
                     self.rect.right = block.left
+                flag = False
                 break
-        ################################################
+        if flag:
+            if course_t == 'left' or course_t == 'right':
+                course = course_t
+                course_t = None
+
+        if -CELL >= self.rect.x or self.rect.x >= size[0]:
+            self.rect.x = abs(self.rect.x + 30 - size[0] if -CELL >= self.rect.x
+                              else self.rect.x - size[0]) - 30
+
+    def moveY(self, yvel):
+        global course, course_t
+        collideList = map
         self.rect.y += yvel
+        flag = True
         for block in collideList:
             if self.rect.colliderect(block):
                 if yvel < 0:
                     self.rect.top = block.bottom
                 elif yvel > 0:
                     self.rect.bottom = block.top
+                flag = False
                 break
-        # Прохож на другую сторону
-        if -CELL >= self.rect.x or self.rect.x >= size[0]:
-            self.rect.x = abs(self.rect.x + 30 - size[0] if -CELL >= self.rect.x
-                              else self.rect.x - size[0]) - 30
+        if flag:
+            if course_t == 'up' and yvel < 0 or course_t == 'down' and yvel > 0:
+                course = course_t
+                course_t = None
 
     def update(self):
+
         self.animation()
         if self.energy:
             self.time_energy -= 0.1
             if self.time_energy <= 0:
                 self.energy = False
 
-        if course == 'left':
-            self.move(-self.speed, 0)
-        elif course == 'right':
-            self.move(self.speed, 0)
-        elif course == 'up':
-            self.move(0, -self.speed)
-        elif course == 'down':
-            self.move(0, self.speed)
+        if course_t == 'left' or course == 'left':
+            self.moveX(-self.speed)
+        if course_t == 'right' or course == 'right':
+            self.moveX(self.speed)
+        if course_t == 'up' or course == 'up':
+            self.moveY(-self.speed)
+        if course_t == 'down' or course == 'down':
+            self.moveY(self.speed)
 
         if pygame.sprite.spritecollide(player, point, True):  # Точки
             self.points += 10
@@ -201,7 +191,6 @@ class Player(pygame.sprite.Sprite):
         if pygame.sprite.spritecollide(player, enemies, False) and not self.energy:  # Призрак поймал
             self.end = True
             self.speed = 0
-
 
     def animation(self):
         global course
@@ -260,9 +249,17 @@ class Enemies(pygame.sprite.Sprite):
         self.speed = 5
         self.course = 'left'
         self.pasive = True
+        self.time_prison = 0
 
     def update(self):
         self.animation()
+        if self.time_prison:
+            self.time_prison -= 0.1
+            if self.time_prison < 1:
+                self.new_pos(9, 10)
+                self.pasive = False
+                self.time_prison = 0
+
         if self.course == 'left':
             self.move(-self.speed, 0)
         elif self.course == 'right':
@@ -304,7 +301,7 @@ class Enemies(pygame.sprite.Sprite):
         self.image.fill('black')
         if self.animCount + 1 >= 10:
             self.animCount = 0
-        if player.checking_energy()[0] and not self.pasive:  # Режим напуганности
+        if player.checking_energy()[0] and not self.pasive:  # Режим испуга
             self.speed = 3
             if player.checking_energy()[1] >= 10:
                 self.image.blit(wall_charged[0][self.animCount // 5], (0, 0))
@@ -338,8 +335,34 @@ class Enemies(pygame.sprite.Sprite):
         self.rect = pygame.Rect(x * CELL, y * CELL, CELL, CELL)
 
     def prison(self):
-        self.pasive = False
+        self.pasive = True
+        self.time_prison = 20
         self.rect = pygame.Rect(8 * CELL, 10 * CELL, CELL, CELL)
+
+class Button:
+    def __init__(self, wigth, height):
+        self.wigth = wigth
+        self.height = height
+
+    def draw(self, x, y, text, s):
+        global intro, running
+        mouse = pygame.mouse.get_pos()
+        click = pygame.mouse.get_pressed()[0]
+
+        font = pygame.font.Font("data\\fonts_i.ttf", s)
+        textq = font.render(text, True, [255, 255, 255])
+
+        fontq2 = pygame.font.Font("data\\fonts_i.ttf", s + 10)
+        textq2 = fontq2.render(text, True, [255, 255, 255])
+        if x < mouse[0] < x + textq.get_rect()[2] and y < mouse[1] < y + textq.get_rect()[3]:
+            screen.blit(textq2, (x - 10, y))
+            if click == 1:
+                return True
+        else:
+            screen.blit(textq, (x, y))
+
+
+
 
 def menu():
     font = pygame.font.Font("data\\fonts.ttf", 30)
@@ -356,6 +379,37 @@ def menu():
         screen.blit(walk[2], (530, 675))
 
 
+w, h = 19, 22
+CELL = 30
+size = w * CELL, h * CELL + 50
+pygame.init()
+pygame.display.set_caption('Pacman')
+
+screen = pygame.display.set_mode(size)
+grid = [pygame.Rect(x * CELL, y * CELL, CELL, CELL) for x in range(w) for y in range(h)]
+# Спрайты
+borders = pygame.sprite.Group()
+point = pygame.sprite.Group()
+energy_porint = pygame.sprite.Group()
+enemies = pygame.sprite.Group()
+all_sprites = pygame.sprite.Group()
+
+row, col = 9 * CELL, 16 * CELL
+course, course_t = 'left', None
+lives = 3
+
+walk = [load_image(30, 10, 160, 140), load_image(190, 10, 310, 140),
+        load_image(330, 10, 460, 140), load_image(190, 10, 310, 140)]
+
+walk_BLINKY = []
+walk_PINKY = []
+walk_INKY = []
+walk_CLYDE = []
+wall_charged = [[load_image(390, 640, 530, 780), load_image(560, 640, 700, 780)],
+                [load_image(730, 640, 870, 780), load_image(900, 640, 1040, 780)]]
+Enemies_walk()
+
+map = Board('map.txt')
 
 Blinky = Enemies(9, 8, walk_BLINKY)
 Blinky.pasive = False
@@ -364,17 +418,20 @@ Inky = Enemies(9, 10, walk_INKY)
 Clyde = Enemies(10, 10, walk_CLYDE)
 player = Player(row, col)
 time_en = 0
+b = Button(50, 30)
+
 
 running = False
 intro = True
 while intro:
     for event in pygame.event.get():
-        if event.type == pygame.QUIT:
+        if event.type == pygame.QUIT or b.draw(210, 200, 'PLAY', 60) is True:
             intro = False
             running = True
+        screen.fill('black')
         screen.blit(pygame.image.load(os.path.join('data', 'intro.png')), (100, 50))
+        b.draw(210, 200, 'PLAY', 60)
     pygame.display.flip()
-
 
 
 clock = pygame.time.Clock()
@@ -385,13 +442,13 @@ while running:
             running = False
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_LEFT:
-                course = 'left'
+                course_t = 'left'
             elif event.key == pygame.K_RIGHT:
-                course = 'right'
+                course_t = 'right'
             elif event.key == pygame.K_UP:
-                course = 'up'
+                course_t = 'up'
             elif event.key == pygame.K_DOWN:
-                course = 'down'
+                course_t = 'down'
     # Выход призраков
     time_en += 1
     if time_en == 200:
