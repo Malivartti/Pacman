@@ -159,14 +159,15 @@ class Player(pygame.sprite.Sprite):
                 course_t = None
 
     def update(self):
-        global all_results
+        global all_results, start
         self.animation()
         if self.energy:
             self.time_energy -= 0.1
             if self.time_energy <= 0:
                 self.energy = False
-        if len(point) == 1 and len(energy_point) == 0:
+        if len(point) == 0 and len(energy_point) == 0:
             all_results += self.results()
+            start = False
             Start_game()
         if course_t == 'left' or course == 'left':
             self.moveX(-self.speed)
@@ -389,6 +390,9 @@ def Start_game():
         for i in ghosts:
             i.kill()
         player.kill()
+    if not start and len(point) == 0:
+        map = Board('data\map.txt')
+
     time_en = 0
     player = Player(9, 16)
     course = 'left'
@@ -421,8 +425,8 @@ def Cycle():
             if button(210, 200, 'PLAY', 60) is True:
                 start = True
                 Start_game()
-                running = True
                 intro = False
+                running = True
             screen.fill('black')
             screen.blit(pygame.image.load(os.path.join('data', 'intro.png')), (100, 50))
             button(210, 200, 'PLAY', 60)
@@ -475,13 +479,14 @@ def Cycle():
                 restart = False
                 cyc = False
             if button(220, 370, 'MENU', 60):
-                restart = False
                 intro = True
+                restart = False
+
             if button(180, 300, 'RESTART', 60):
                 start = True
                 Start_game()
-                running = True
                 restart = False
+                running = True
             screen.fill('black')
             screen.blit(pygame.image.load(os.path.join('data', 'intro.png')), (100, 50))
 
