@@ -1,7 +1,6 @@
 import os
 from random import choice
 from time import sleep
-
 import pygame
 
 
@@ -119,17 +118,15 @@ class Player(pygame.sprite.Sprite):
         self.add(player_g)
         self.image = pygame.Surface((CELL, CELL))
         self.rect = pygame.Rect(x * CELL, y * CELL, CELL, CELL)
-        self.states()
 
-    def states(self):
-        self.points = 0
+        self.animCount = 0
+        self.animCountdeath = 0
+        self.speed = 5
         self.energy = False
         self.time_energy = 0
         self.end = False
         self.time_end = 0
-        self.animCount = 0
-        self.animCountdeath = 0
-        self.speed = 5
+        self.points = 0
 
     def moveX(self, xvel):
         global course, course_t
@@ -228,13 +225,21 @@ class Player(pygame.sprite.Sprite):
 
     def death_animation(self):
         global lives, new_start, all_results
+        anim = death_pacman
+        if course == 'right':
+            anim =[pygame.transform.rotate(i, 180) for i in anim]
+        elif course == 'up':
+            anim =[pygame.transform.rotate(i, -90) for i in anim]
+        elif course == 'down':
+            anim = [pygame.transform.rotate(i, 90) for i in anim]
+
         if self.animCountdeath + 1 >= 60:
             all_results += self.number_of_points()
             lives -= 1
             new_start = False
             Start_game()
         else:
-            self.image.blit(death_pacman[self.animCountdeath // 5], (0, 0))
+            self.image.blit(anim[self.animCountdeath // 5], (0, 0))
             self.animCountdeath += 1
 
     def number_of_points(self):
@@ -252,10 +257,7 @@ class Ghost(pygame.sprite.Sprite):
         self.anim = anim
         self.image = pygame.Surface((CELL, CELL))
         self.rect = pygame.Rect(x * CELL, y * CELL, CELL, CELL)
-        self.states()
 
-
-    def states(self):
         self.animCount = 0
         self.speed = 5 + level / 5
         self.course = 'left'
@@ -352,21 +354,21 @@ class Ghost(pygame.sprite.Sprite):
         screen.blit(text, (self.rect_score[0], self.rect_score[1]))
 
     def release_from_prison(self, x, y):
-        '''Выход призрака из клетки'''
+        """Выход призрака из клетки"""
         self.time_into_prison = 0
         self.pasive = False
         self.course = 'up'
         self.rect = pygame.Rect(x * CELL, y * CELL, CELL, CELL)
 
     def into_prison(self):
-        '''Нахождение призрака в клетке'''
+        """Нахождение призрака в клетке"""
         self.pasive = True
         self.time_into_prison = 20
         self.rect = pygame.Rect(8 * CELL, 10 * CELL, CELL, CELL)
 
 
 def button(x, y, text, s):
-    '''Создание кнопки'''
+    """Создание кнопки"""
     global intro, running
     mouse = pygame.mouse.get_pos()
     click = pygame.mouse.get_pressed()[0]
@@ -384,9 +386,8 @@ def button(x, y, text, s):
         screen.blit(textq, (x, y))
 
 
-
 def footer():
-    '''Отрисовка счета частиц, количество жизней'''
+    """Отрисовка счета частиц, количество жизней"""
     font = pygame.font.Font("data\\fonts.ttf", 25)
     text = font.render(f"SCRORE: {player.number_of_points() + all_results}", True, [255, 255, 255])
     screen.blit(text, (10, 670))
@@ -404,8 +405,8 @@ def footer():
 
 
 def Start_game():
-    '''Завершение при отсутсвии жизней, начальный запуск, отрисовка карты со старыми значениями
-     при присутсвии жизней, перезапуск после сбора всех частиц'''
+    """Завершение при отсутсвии жизней, начальный запуск, отрисовка карты со старыми значениями
+     при присутсвии жизней, перезапуск после сбора всех частиц"""
     global player, Blinky, Pinky, Inky, Clyde, map, level, \
         running, restart, course, course_t, lives, all_results, time_en
 
@@ -419,19 +420,18 @@ def Start_game():
         all_results = 0
         lives = 3
         level = 1
-        map = Board('data\map.txt')
+        map = Board('data\\map.txt')
     else:
         for i in ghosts:
             i.kill()
         player.kill()
     if not new_start and len(point) == 0:
         level += 1
-        map = Board('data\map.txt')
+        map = Board('data\\map.txt')
 
     time_en = 0
+    course, course_t = 'left', None
     player = Player(9, 16)
-    course = 'left'
-    course_t = None
     Blinky = Ghost(9, 8, walk_BLINKY)
     Blinky.pasive = False
     Pinky = Ghost(8, 10, walk_PINKY)
@@ -440,7 +440,7 @@ def Start_game():
 
 
 def timer(number):
-    '''Отсчет при начале игры'''
+    """Отсчет при начале игры"""
     font = pygame.font.Font("data\\fonts_i.ttf", 50)
     text = font.render(str(number), True, [255, 48, 48])
     image = pygame.Surface((CELL, CELL * 2))
@@ -451,14 +451,13 @@ def timer(number):
     sleep(1)
 
 
-def Cycle():
-    global intro, running, restart, time_en, course_t, cyc, new_start, time_en
-
+def Intro():
+    global cycle, intro, new_start, running
     while intro:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                intro = False
-                cyc = False
+                cycle = False
+                exit()
             if button(210, 200, 'PLAY', 60) is True:
                 new_start = True
                 Start_game()
@@ -469,6 +468,9 @@ def Cycle():
             button(210, 200, 'PLAY', 60)
         pygame.display.flip()
 
+
+def Runing():
+    global cycle, running, time_en, course_t
     clock = pygame.time.Clock()
     while running:
         time_en += 1
@@ -479,10 +481,11 @@ def Cycle():
         elif time_en == 5:
             timer(1)
         else:
+            screen.fill(pygame.Color("black"))
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    running = False
-                    cyc = False
+                    cycle = False
+                    exit()
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_LEFT:
                         course_t = 'left'
@@ -493,28 +496,40 @@ def Cycle():
                     elif event.key == pygame.K_DOWN:
                         course_t = 'down'
             # Выход призраков
-
             if time_en == 200:
                 Pinky.release_from_prison(9, 10)
             if time_en == 400:
                 Inky.release_from_prison(9, 10)
             if time_en == 600:
                 Clyde.release_from_prison(9, 10)
-            # Сетка
-            screen.fill(pygame.Color("black"))
-            # [pygame.draw.rect(screen, (40, 40, 40), i_rect, 1) for i_rect in grid]
-            # Клетки
+
             all_sprites.draw(screen)
             all_sprites.update()
             footer()
 
         clock.tick(30)
         pygame.display.flip()
+
+
+def Restart():
+    global restart, cycle, intro, new_start, running
+
+    font = pygame.font.Font(None, 32)
+    color_inactive = pygame.Color('white')
+    color_active = pygame.Color('dodgerblue2')
+    color = color_inactive
+
+    input_box = pygame.Rect(155, 250, 260, 32)
+    input_text = '  CREATE NICKNAME'
+    active = False
+    input_button = True
+
     while restart:
         for event in pygame.event.get():
+            screen.fill('black')
             if event.type == pygame.QUIT or button(240, 440, 'EXIT', 60) is True:
-                restart = False
-                cyc = False
+                cycle = False
+                exit()
             if button(220, 370, 'MENU', 60):
                 intro = True
                 restart = False
@@ -523,11 +538,34 @@ def Cycle():
                 Start_game()
                 restart = False
                 running = True
-            screen.fill('black')
-            screen.blit(pygame.image.load(os.path.join('data', 'intro.png')), (100, 50))
+            # Button input name
+            if input_button:
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if input_box.collidepoint(event.pos):
+                        active = not active
+                    else:
+                        active = False
+                    color = color_active if active else color_inactive
+                if event.type == pygame.KEYDOWN:
+                    if active:
+                        if event.key == pygame.K_RETURN:
+                            color = color_inactive
+                            input_button = False
+                            # Добавить добавление в БД
+                        elif event.key == pygame.K_BACKSPACE:
+                            input_text = input_text[:-1]
+                        else:
+                            if input_text == '  CREATE NICKNAME':
+                                input_text = ''
+                            if len(input_text) < 18:
+                                input_text += event.unicode
+            text = font.render(input_text, True, color)
+            screen.blit(text, (input_box.x + 5, input_box.y + 5))
+            pygame.draw.rect(screen, color, input_box, 2)
 
-            font = pygame.font.Font("data\\fonts_i.ttf", 40)
-            text = font.render(f"Your SCRORE: {all_results}", True, [255, 255, 255])
+            screen.blit(pygame.image.load(os.path.join('data', 'intro.png')), (100, 50))
+            font2 = pygame.font.Font("data\\fonts_i.ttf", 40)
+            text = font2.render(f"Your SCRORE: {all_results}", True, [255, 255, 255])
             screen.blit(text, (size[0] / 2 - text.get_rect()[2] / 2, 170))
 
             button(180, 300, 'RESTART', 60)
@@ -536,15 +574,13 @@ def Cycle():
         pygame.display.flip()
 
 
+
 if __name__ == '__main__':
-    w, h = 19, 22
     CELL = 30
-    size = w * CELL, h * CELL + 50
+    size = 19 * CELL, 22 * CELL + 50
     pygame.init()
     pygame.display.set_caption('Pacman')
-
     screen = pygame.display.set_mode(size)
-    # grid = [pygame.Rect(x * CELL, y * CELL, CELL, CELL) for x in range(w) for y in range(h)]
 
     # Анимации
     walk = [load_image(30, 10, 160, 140), load_image(190, 10, 310, 140),
@@ -567,18 +603,20 @@ if __name__ == '__main__':
     ghosts = pygame.sprite.Group()
 
     all_results = 0
-    course, course_t = 'left', None
     lives = 3
     level = 1
+    time_en = 0
+    course, course_t = 'left', None
     new_start = True
     Start_game()
 
-    time_en = 0
     intro = True
     running = False
     restart = False
 
-    cyc = True
-    while cyc:
-        Cycle()
+    cycle = True
+    while cycle:
+        Intro()
+        Runing()
+        Restart()
     pygame.quit()
