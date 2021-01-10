@@ -116,6 +116,7 @@ class Energy_Point(pygame.sprite.Sprite):
 class Player(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__(all_sprites)
+        self.add(player_g)
         self.image = pygame.Surface((CELL, CELL))
         self.rect = pygame.Rect(x * CELL, y * CELL, CELL, CELL)
         self.states()
@@ -253,12 +254,15 @@ class Ghost(pygame.sprite.Sprite):
         self.rect = pygame.Rect(x * CELL, y * CELL, CELL, CELL)
         self.states()
 
+
     def states(self):
         self.animCount = 0
-        self.speed = 5
+        self.speed = 5 + level / 5
         self.course = 'left'
         self.pasive = True
         self.time_into_prison = 0
+        self.darw_score_time = 0  # Длительность надписи
+        self.rect_score = 0, 0  # Позиция для отображения ценности призрака
 
     def update(self):
         self.animation()
@@ -266,9 +270,8 @@ class Ghost(pygame.sprite.Sprite):
             self.time_into_prison -= 0.1
             if self.time_into_prison < 1:
                 self.release_from_prison(9, 10)
-                self.pasive = False
-                self.time_into_prison = 0
-
+        if self.darw_score_time >= 0:
+            self.darw_score()
         if self.course == 'left':
             self.move(-self.speed, 0)
         elif self.course == 'right':
@@ -278,7 +281,10 @@ class Ghost(pygame.sprite.Sprite):
         elif self.course == 'down':
             self.move(0, self.speed)
 
-        if pygame.sprite.spritecollide(player, ghosts, False) and player.checking_pacman_energy()[0]:  # Призрак поймал
+        if pygame.sprite.spritecollideany(self, player_g) and player.checking_pacman_energy()[0]:  # Призрак поймал
+            player.points += 400
+            self.rect_score = self.rect.x + 20, self.rect.y - 10
+            self.darw_score_time = 3
             self.into_prison()
 
     def move(self, xvel, yvel):
@@ -324,7 +330,7 @@ class Ghost(pygame.sprite.Sprite):
                     self.animCount += 1
 
         else:  # Обычный режим
-            self.speed = 5
+            self.speed = 5 + level / 5
             if self.course == 'left':
                 self.image.blit(self.anim[3][self.animCount // 5], (0, 0))
                 self.animCount += 1
@@ -338,12 +344,22 @@ class Ghost(pygame.sprite.Sprite):
                 self.image.blit(self.anim[1][self.animCount // 5], (0, 0))
                 self.animCount += 1
 
+    def darw_score(self):
+        '''Отрисовка стоимости призрака'''
+        self.darw_score_time -= 0.1
+        font = pygame.font.Font("data\\fonts_i.ttf", 15)
+        text = font.render('400', True, [255, 255, 255])
+        screen.blit(text, (self.rect_score[0], self.rect_score[1]))
+
     def release_from_prison(self, x, y):
+        '''Выход призрака из клетки'''
+        self.time_into_prison = 0
         self.pasive = False
         self.course = 'up'
         self.rect = pygame.Rect(x * CELL, y * CELL, CELL, CELL)
 
     def into_prison(self):
+        '''Нахождение призрака в клетке'''
         self.pasive = True
         self.time_into_prison = 20
         self.rect = pygame.Rect(8 * CELL, 10 * CELL, CELL, CELL)
@@ -368,26 +384,29 @@ def button(x, y, text, s):
         screen.blit(textq, (x, y))
 
 
+
 def footer():
     '''Отрисовка счета частиц, количество жизней'''
-    font = pygame.font.Font("data\\fonts.ttf", 30)
+    font = pygame.font.Font("data\\fonts.ttf", 25)
     text = font.render(f"SCRORE: {player.number_of_points() + all_results}", True, [255, 255, 255])
     screen.blit(text, (10, 670))
 
     text2 = font.render("LIVES", True, [255, 255, 255])
-    screen.blit(text2, (350, 670))
+    screen.blit(text2, (390, 670))
     if lives > 0:
-        screen.blit(walk[1], (450, 675))
+        screen.blit(walk[1], (460, 670))
     if lives > 1:
-        screen.blit(walk[2], (490, 675))
+        screen.blit(walk[1], (500, 670))
     if lives > 2:
-        screen.blit(walk[2], (530, 675))
+        screen.blit(walk[1], (540, 670))
+    text = font.render(f"LEVEL {level}", True, [255, 255, 255])
+    screen.blit(text, (260, 670))
 
 
 def Start_game():
-    '''Завршение при отсутсвии жизней, начальный запуск, отрисовка карты с старыми значениями
+    '''Завершение при отсутсвии жизней, начальный запуск, отрисовка карты со старыми значениями
      при присутсвии жизней, перезапуск после сбора всех частиц'''
-    global player, Blinky, Pinky, Inky, Clyde, map, \
+    global player, Blinky, Pinky, Inky, Clyde, map, level, \
         running, restart, course, course_t, lives, all_results, time_en
 
     if lives == 0:
@@ -399,13 +418,14 @@ def Start_game():
             i.kill()
         all_results = 0
         lives = 3
+        level = 1
         map = Board('data\map.txt')
-
     else:
         for i in ghosts:
             i.kill()
         player.kill()
     if not new_start and len(point) == 0:
+        level += 1
         map = Board('data\map.txt')
 
     time_en = 0
@@ -498,7 +518,6 @@ def Cycle():
             if button(220, 370, 'MENU', 60):
                 intro = True
                 restart = False
-
             if button(180, 300, 'RESTART', 60):
                 new_start = True
                 Start_game()
@@ -541,6 +560,7 @@ if __name__ == '__main__':
 
     # Спрайты
     all_sprites = pygame.sprite.Group()
+    player_g = pygame.sprite.Group()
     borders = pygame.sprite.Group()
     point = pygame.sprite.Group()
     energy_point = pygame.sprite.Group()
@@ -549,7 +569,7 @@ if __name__ == '__main__':
     all_results = 0
     course, course_t = 'left', None
     lives = 3
-
+    level = 1
     new_start = True
     Start_game()
 
