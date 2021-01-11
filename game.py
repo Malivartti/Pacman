@@ -1,4 +1,5 @@
 import os
+import sqlite3
 from random import choice
 from time import sleep
 import pygame
@@ -77,10 +78,9 @@ def Board(filename):
 class Obstacle(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__(all_sprites)
-        x, y = x * CELL, y * CELL
         self.add(borders)
         self.image = pygame.Surface([CELL, CELL])
-        self.rect = pygame.Rect(x, y, CELL, CELL)
+        self.rect = pygame.Rect(x * CELL, y * CELL, CELL, CELL)
         self.image.fill('blue')
 
 
@@ -129,6 +129,7 @@ class Player(pygame.sprite.Sprite):
         self.points = 0
 
     def moveX(self, xvel):
+        """Движение игрока по горизонтали"""
         global course, course_t
         collideList = map
         self.rect.x += xvel
@@ -151,6 +152,7 @@ class Player(pygame.sprite.Sprite):
                               else self.rect.x - size[0]) - 30
 
     def moveY(self, yvel):
+        """Движение игрока по вертикали"""
         global course, course_t
         collideList = map
         self.rect.y += yvel
@@ -224,12 +226,13 @@ class Player(pygame.sprite.Sprite):
                 self.animCount += 1
 
     def death_animation(self):
+        """Анимация смерти"""
         global lives, new_start, all_results
         anim = death_pacman
         if course == 'right':
-            anim =[pygame.transform.rotate(i, 180) for i in anim]
+            anim = [pygame.transform.rotate(i, 180) for i in anim]
         elif course == 'up':
-            anim =[pygame.transform.rotate(i, -90) for i in anim]
+            anim = [pygame.transform.rotate(i, -90) for i in anim]
         elif course == 'down':
             anim = [pygame.transform.rotate(i, 90) for i in anim]
 
@@ -242,10 +245,13 @@ class Player(pygame.sprite.Sprite):
             self.image.blit(anim[self.animCountdeath // 5], (0, 0))
             self.animCountdeath += 1
 
+
     def number_of_points(self):
+        """Количество собранных частиц"""
         return self.points
 
     def checking_pacman_energy(self):
+        """Проверка на заряд пакмена"""
         return self.energy, self.time_energy
 
 
@@ -264,7 +270,7 @@ class Ghost(pygame.sprite.Sprite):
         self.pasive = True
         self.time_into_prison = 0
         self.darw_score_time = 0  # Длительность надписи
-        self.rect_score = 0, 0  # Позиция для отображения ценности призрака
+        self.rect_score = 0, 0  # Позиция для отображения надписи
 
     def update(self):
         self.animation()
@@ -290,7 +296,9 @@ class Ghost(pygame.sprite.Sprite):
             self.into_prison()
 
     def move(self, xvel, yvel):
+        """Движение призрака"""
         collideList = map
+
         self.rect.x += xvel
         for block in collideList:
             if self.rect.colliderect(block):
@@ -314,11 +322,11 @@ class Ghost(pygame.sprite.Sprite):
                 break
 
     def animation(self):
-        global animCountE
         self.image.fill('black')
         if self.animCount + 1 >= 10:
             self.animCount = 0
-        if player.checking_pacman_energy()[0] and not self.pasive:  # Режим испуга
+        # Режим испуга
+        if player.checking_pacman_energy()[0] and not self.pasive:
             self.speed = 3
             if player.checking_pacman_energy()[1] >= 10:
                 self.image.blit(wall_charged[0][self.animCount // 5], (0, 0))
@@ -347,7 +355,7 @@ class Ghost(pygame.sprite.Sprite):
                 self.animCount += 1
 
     def darw_score(self):
-        '''Отрисовка стоимости призрака'''
+        """Отрисовка стоимости призрака"""
         self.darw_score_time -= 0.1
         font = pygame.font.Font("data\\fonts_i.ttf", 15)
         text = font.render('400', True, [255, 255, 255])
@@ -451,25 +459,53 @@ def timer(number):
     sleep(1)
 
 
+def Add_in_table(name, score):
+    """Добавление игроков в топ"""
+    con = sqlite3.connect('data\list_of_results.db')
+    cur = con.cursor()
+    result = cur.execute("""SELECT * FROM results""").fetchall()
+
+    flag = False, 0
+    for i in result:
+        if str(name) == str(i[0]):
+            flag = True, i[1]
+            break
+    if flag[0]:
+        if int(flag[1]) < score:
+            cur.execute(f"""UPDATE results
+            SET SCORE = '{score}'
+            WHERE PLAYER = '{str(name)}' """).fetchall()
+            con.commit()
+    else:
+        cur.execute(f"""INSERT INTO results(PLAYER,SCORE) VALUES('{name}', {score})""").fetchall()
+
+    con.commit()
+    con.close()
+
+
 def Intro():
-    global cycle, intro, new_start, running
+    """Начальный экран"""
+    global cycle, intro, table, new_start, running
     while intro:
         for event in pygame.event.get():
+            screen.fill('black')
             if event.type == pygame.QUIT:
                 cycle = False
-                exit()
+                intro = False
             if button(210, 200, 'PLAY', 60) is True:
                 new_start = True
                 Start_game()
                 intro = False
                 running = True
-            screen.fill('black')
+            elif button(110, 280, 'HIGH SCORES', 60) is True:
+                intro = False
+                table = True
             screen.blit(pygame.image.load(os.path.join('data', 'intro.png')), (100, 50))
-            button(210, 200, 'PLAY', 60)
         pygame.display.flip()
 
 
 def Runing():
+    """Игровой цикл"""
     global cycle, running, time_en, course_t
     clock = pygame.time.Clock()
     while running:
@@ -481,11 +517,11 @@ def Runing():
         elif time_en == 5:
             timer(1)
         else:
-            screen.fill(pygame.Color("black"))
+            screen.fill("black")
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     cycle = False
-                    exit()
+                    running = False
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_LEFT:
                         course_t = 'left'
@@ -512,6 +548,7 @@ def Runing():
 
 
 def Restart():
+    """Окно после завершения игры"""
     global restart, cycle, intro, new_start, running
 
     font = pygame.font.Font(None, 32)
@@ -519,7 +556,7 @@ def Restart():
     color_active = pygame.Color('dodgerblue2')
     color = color_inactive
 
-    input_box = pygame.Rect(155, 250, 260, 32)
+    input_box = pygame.Rect(155, 250, 270, 32)
     input_text = '  CREATE NICKNAME'
     active = False
     input_button = True
@@ -529,7 +566,7 @@ def Restart():
             screen.fill('black')
             if event.type == pygame.QUIT or button(240, 440, 'EXIT', 60) is True:
                 cycle = False
-                exit()
+                restart = False
             if button(220, 370, 'MENU', 60):
                 intro = True
                 restart = False
@@ -551,7 +588,7 @@ def Restart():
                         if event.key == pygame.K_RETURN:
                             color = color_inactive
                             input_button = False
-                            # Добавить добавление в БД
+                            Add_in_table(input_text, all_results)
                         elif event.key == pygame.K_BACKSPACE:
                             input_text = input_text[:-1]
                         else:
@@ -567,12 +604,48 @@ def Restart():
             font2 = pygame.font.Font("data\\fonts_i.ttf", 40)
             text = font2.render(f"Your SCRORE: {all_results}", True, [255, 255, 255])
             screen.blit(text, (size[0] / 2 - text.get_rect()[2] / 2, 170))
-
-            button(180, 300, 'RESTART', 60)
-            button(220, 370, 'MENU', 60)
-            button(240, 440, 'EXIT', 60)
+        if input_text == '  CREATE NICKNAME':
+            Add_in_table('[ ]', all_results)
         pygame.display.flip()
 
+
+def Table():
+    """Таблица с 10 лучшими игроками"""
+    global cycle, intro, table
+    con = sqlite3.connect('data\\list_of_results.db')
+    cur = con.cursor()
+    result = cur.execute("""SELECT * FROM results""").fetchall()
+    result.sort(key=lambda x: x[1])
+
+    result = result[::-1][:10]
+    y = 100
+    font = pygame.font.Font("data\\fonts_i.ttf", 30)
+
+    while table:
+        for event in pygame.event.get():
+            screen.fill('black')
+            if event.type == pygame.QUIT:
+                cycle = False
+                table = False
+            elif button(250, 630, 'GO BACK', 30) is True:
+                table = False
+                intro = True
+
+            text = font.render("    NICKNAME                     SCORE", True, [255, 255, 0])
+            screen.blit(text, (70, 25))
+            for i in result:
+                text = font.render(f"{result.index(i) + 1}.   {i[0]}", True, [255, 255, 255])
+                screen.blit(text, (70, y))
+                a = ''
+                for i, ch in enumerate(str(i[1])[::-1]):
+                    if i != 0 and i % 3 == 0:
+                        a += ' ,'
+                    a += ch
+                text = font.render(f"{a[::-1]}", True, [255, 255, 255])
+                screen.blit(text, (400, y))
+                y += 50
+            y = 100
+        pygame.display.flip()
 
 
 if __name__ == '__main__':
@@ -613,10 +686,12 @@ if __name__ == '__main__':
     intro = True
     running = False
     restart = False
+    table = False
 
     cycle = True
     while cycle:
         Intro()
         Runing()
         Restart()
+        Table()
     pygame.quit()
