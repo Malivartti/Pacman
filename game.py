@@ -156,6 +156,9 @@ class Player(pygame.sprite.Sprite):
         global course, course_t
         collideList = map
         self.rect.y += yvel
+        # Запрет на вход в клетку призраков
+        if self.rect.colliderect(pygame.Rect(9 * CELL, 9 * CELL, CELL, CELL)):
+            self.rect.top = pygame.Rect(9 * CELL, 8 * CELL, CELL, CELL).top
         flag = True
         for block in collideList:
             if self.rect.colliderect(block):
@@ -383,11 +386,10 @@ def button(x, y, text, s):
 
     font = pygame.font.Font("data\\fonts_i.ttf", s)
     textq = font.render(text, True, [255, 255, 255])
-
     fontq2 = pygame.font.Font("data\\fonts_i.ttf", s + 10)
     textq2 = fontq2.render(text, True, [255, 255, 255])
     if x < mouse[0] < x + textq.get_rect()[2] and y < mouse[1] < y + textq.get_rect()[3]:
-        screen.blit(textq2, (x - 10, y))
+        screen.blit(textq2, (x - (textq2.get_rect()[2] - textq.get_rect()[2]) / 2, y))
         if click == 1:
             return True
     else:
@@ -500,7 +502,7 @@ def Intro():
             elif button(110, 280, 'HIGH SCORES', 60) is True:
                 intro = False
                 table = True
-            screen.blit(pygame.image.load(os.path.join('data', 'intro.png')), (100, 50))
+            screen.blit(pygame.image.load(os.path.join('data', 'intro.png')), (80, 50))
         pygame.display.flip()
 
 
@@ -600,7 +602,7 @@ def Restart():
             screen.blit(text, (input_box.x + 5, input_box.y + 5))
             pygame.draw.rect(screen, color, input_box, 2)
 
-            screen.blit(pygame.image.load(os.path.join('data', 'intro.png')), (100, 50))
+            screen.blit(pygame.image.load(os.path.join('data', 'intro.png')), (80, 50))
             font2 = pygame.font.Font("data\\fonts_i.ttf", 40)
             text = font2.render(f"Your SCRORE: {all_results}", True, [255, 255, 255])
             screen.blit(text, (size[0] / 2 - text.get_rect()[2] / 2, 170))
