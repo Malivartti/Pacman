@@ -156,10 +156,12 @@ class Player(pygame.sprite.Sprite):
         global course, course_t
         collideList = map
         self.rect.y += yvel
+        flag = True
         # Запрет на вход в клетку призраков
         if self.rect.colliderect(pygame.Rect(9 * CELL, 9 * CELL, CELL, CELL)):
-            self.rect.top = pygame.Rect(9 * CELL, 8 * CELL, CELL, CELL).top
-        flag = True
+            self.rect.bottom = pygame.Rect(9 * CELL, 9 * CELL, CELL, CELL).top
+            flag = False
+
         for block in collideList:
             if self.rect.colliderect(block):
                 if yvel < 0:
