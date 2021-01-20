@@ -592,7 +592,8 @@ def Restart():
                         if event.key == pygame.K_RETURN:
                             color = color_inactive
                             input_button = False
-                            Add_in_table(input_text, all_results)
+                            if input_text != '  CREATE NICKNAME':
+                                Add_in_table(input_text, all_results)
                         elif event.key == pygame.K_BACKSPACE:
                             input_text = input_text[:-1]
                         else:
