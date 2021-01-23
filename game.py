@@ -5,7 +5,7 @@ from time import sleep
 import pygame
 
 
-def load_image(x, y, x2, y2, file='pac.png', colorkey=-1):
+def loadimage(x, y, x2, y2, file='pac.png', colorkey=-1):
     image = pygame.image.load(os.path.join('data', file))
     cropped = pygame.Surface((x2 - x, y2 - y))
     cropped.blit(image, (0, 0), (x, y, x2, y2))
@@ -21,35 +21,36 @@ def load_image(x, y, x2, y2, file='pac.png', colorkey=-1):
     return image
 
 
-def Enemies_walk():
+def enemieswalk():
     global walk_BLINKY, walk_PINKY, walk_INKY, walk_CLYDE
     x, y = 470, 0
     for _ in range(6):
-        walk_BLINKY.append(load_image(x, y, x + 140, y + 140))
+        walk_BLINKY.append(loadimage(x, y, x + 140, y + 140))
         x += 170
     x, y = 50, 160
+    # Нарезка картинок призраков
     for i in range(4):
         for j in range(8):
             if i == 0 and j in [0, 1]:
-                walk_BLINKY.append(load_image(x, y, x + 140, y + 140))
+                walk_BLINKY.append(loadimage(x, y, x + 140, y + 140))
             elif i == 0 and j in [2, 3, 4, 5, 6, 7] or i == 1 and j in [0, 1]:
-                walk_INKY.append(load_image(x, y, x + 140, y + 140))
+                walk_INKY.append(loadimage(x, y, x + 140, y + 140))
             elif (i == 1 and j in [2, 3, 4, 5, 6, 7]) or (i == 2 and j in [0, 1]):
-                walk_CLYDE.append(load_image(x, y, x + 140, y + 140))
+                walk_CLYDE.append(loadimage(x, y, x + 140, y + 140))
             elif (i == 2 and j in [2, 3, 4, 5, 6, 7]) or (i == 3 and j in [0, 1]):
-                walk_PINKY.append(load_image(x, y, x + 140, y + 140))
+                walk_PINKY.append(loadimage(x, y, x + 140, y + 140))
             x += 170
         x = 50
         y += 160
     x, y = 5, 445
+    # Нарезка анимации смерти пакмена
     for i2 in range(2):
         for j2 in range(8):
             if i2 == 0 or (i2 == 1 and j2 in [0, 1, 2, 3]):
-                death_pacman.append(load_image(x, y, x + 55, y + 65, 'death_pac.png'))
+                death_pacman.append(loadimage(x, y, x + 55, y + 65, 'death_pac.png'))
             x += 70
         x = 5
         y += 65
-
     walk_BLINKY = [[walk_BLINKY[0], walk_BLINKY[1]], [walk_BLINKY[2], walk_BLINKY[3]],
                    [walk_BLINKY[4], walk_BLINKY[5]], [walk_BLINKY[6], walk_BLINKY[7]]]
     walk_PINKY = [[walk_PINKY[0], walk_PINKY[1]], [walk_PINKY[2], walk_PINKY[3]],
@@ -60,7 +61,8 @@ def Enemies_walk():
                   [walk_CLYDE[4], walk_CLYDE[5]], [walk_CLYDE[6], walk_CLYDE[7]]]
 
 
-def Board(filename):
+def board(filename):
+    """Отрисовка карты по файлу"""
     lis = []
     file = [line.rstrip() for line in open(filename)]
     for row, i in enumerate(file):
@@ -76,6 +78,7 @@ def Board(filename):
 
 
 class Obstacle(pygame.sprite.Sprite):
+    """Спрайты стен"""
     def __init__(self, x, y):
         super().__init__(all_sprites)
         self.add(borders)
@@ -85,6 +88,7 @@ class Obstacle(pygame.sprite.Sprite):
 
 
 class Point(pygame.sprite.Sprite):
+    """Спрайты частиц"""
     def __init__(self, x, y):
         super().__init__(all_sprites)
         self.add(point)
@@ -94,6 +98,7 @@ class Point(pygame.sprite.Sprite):
 
 
 class Energy_Point(pygame.sprite.Sprite):
+    """Спрайты заряженных частиц"""
     def __init__(self, x, y):
         super().__init__(all_sprites)
         self.add(energy_point)
@@ -104,6 +109,7 @@ class Energy_Point(pygame.sprite.Sprite):
         self.image.fill('black')
 
     def update(self):
+        """Анимация"""
         self.image.fill('black')
         self.radius += self.v
         if self.radius > 8 or self.radius < 2:
@@ -119,14 +125,14 @@ class Player(pygame.sprite.Sprite):
         self.image = pygame.Surface((CELL, CELL))
         self.rect = pygame.Rect(x * CELL, y * CELL, CELL, CELL)
 
-        self.animCount = 0
-        self.animCountdeath = 0
-        self.speed = 5
-        self.energy = False
-        self.time_energy = 0
-        self.end = False
-        self.time_end = 0
-        self.points = 0
+        self.animCount = 0  # Кадры анимации
+        self.animCountdeath = 0  # Кадры анимации смерти
+        self.speed = 5  # Скорость
+        self.energy = False  # Проверка на неуязвимость
+        self.time_energy = 0  # Время неуязвимости
+        self.end = False  # Проверка на смерть
+        self.time_end = 0  # Длина анимации смерти
+        self.points = 0  # Количество собранных частиц
 
     def moveX(self, xvel):
         """Движение игрока по горизонтали"""
@@ -134,6 +140,7 @@ class Player(pygame.sprite.Sprite):
         collideList = map
         self.rect.x += xvel
         flag = True
+        # Проверка на столкновение
         for block in collideList:
             if self.rect.colliderect(block):
                 if xvel < 0:
@@ -142,11 +149,12 @@ class Player(pygame.sprite.Sprite):
                     self.rect.right = block.left
                 flag = False
                 break
+        # Если нет столкновения по горизонтали
         if flag:
             if course_t == 'left' or course_t == 'right':
                 course = course_t
                 course_t = None
-
+        # Возможность проходит по мотсту, появление на противоположной стороне
         if -CELL >= self.rect.x or self.rect.x >= size[0]:
             self.rect.x = abs(self.rect.x + 30 - size[0] if -CELL >= self.rect.x
                               else self.rect.x - size[0]) - 30
@@ -161,7 +169,7 @@ class Player(pygame.sprite.Sprite):
         if self.rect.colliderect(pygame.Rect(9 * CELL, 9 * CELL, CELL, CELL)):
             self.rect.bottom = pygame.Rect(9 * CELL, 9 * CELL, CELL, CELL).top
             flag = False
-
+        # Проверка на столкновение по вертикали
         for block in collideList:
             if self.rect.colliderect(block):
                 if yvel < 0:
@@ -178,14 +186,16 @@ class Player(pygame.sprite.Sprite):
     def update(self):
         global all_results, new_start
         self.animation()
+        # Если есть неуязвимость - отчет завершения
         if self.energy:
             self.time_energy -= 0.1
             if self.time_energy <= 0:
                 self.energy = False
+        # Если собраны все чатицы, переход на новый уровень
         if len(point) == 0 and len(energy_point) == 0:
-            all_results += self.number_of_points()
+            all_results += self.numberofpoints()
             new_start = False
-            Start_game()
+            startgame()
         if course_t == 'left' or course == 'left':
             self.moveX(-self.speed)
         if course_t == 'right' or course == 'right':
@@ -196,9 +206,9 @@ class Player(pygame.sprite.Sprite):
             self.moveY(self.speed)
 
         # Взаимодействие
-        if pygame.sprite.spritecollide(player, point, True):  # Точки
+        if pygame.sprite.spritecollide(player, point, True):  # Частицы
             self.points += 10
-        if pygame.sprite.spritecollide(player, energy_point, True):  # Точки
+        if pygame.sprite.spritecollide(player, energy_point, True):  # Заряженные частицы
             self.points += 50
             self.energy = True
             self.time_energy = 30
@@ -212,28 +222,25 @@ class Player(pygame.sprite.Sprite):
         if self.animCount + 1 >= 20:
             self.animCount = 0
         if self.end:
-            self.death_animation()
+            self.deathanimation()
         else:
             if course == 'left':
                 walk_L = [pygame.transform.rotate(i, 180) for i in walk]
                 self.image.blit(walk_L[self.animCount // 5], (0, 0))
-                self.animCount += 1
             elif course == 'right':
                 self.image.blit(walk[self.animCount // 5], (0, 0))
-                self.animCount += 1
             elif course == 'up':
                 walk_UP = [pygame.transform.rotate(i, 90) for i in walk]
                 self.image.blit(walk_UP[self.animCount // 5], (0, 0))
-                self.animCount += 1
             elif course == 'down':
                 walk_DOWN = [pygame.transform.rotate(i, -90) for i in walk]
                 self.image.blit(walk_DOWN[self.animCount // 5], (0, 0))
-                self.animCount += 1
+            self.animCount += 1
 
-    def death_animation(self):
+    def deathanimation(self):
         """Анимация смерти"""
         global lives, new_start, all_results
-        anim = death_pacman
+        anim = death_pacman  # Список кадров
         if course == 'right':
             anim = [pygame.transform.rotate(i, 180) for i in anim]
         elif course == 'up':
@@ -241,17 +248,16 @@ class Player(pygame.sprite.Sprite):
         elif course == 'down':
             anim = [pygame.transform.rotate(i, 90) for i in anim]
 
-        if self.animCountdeath + 1 >= 60:
-            all_results += self.number_of_points()
+        if self.animCountdeath + 1 >= 60:  # События после анимации смерти
+            all_results += self.numberofpoints()  # Добавление текущего счета к основнуму
             lives -= 1
             new_start = False
-            Start_game()
+            startgame()
         else:
             self.image.blit(anim[self.animCountdeath // 5], (0, 0))
             self.animCountdeath += 1
 
-
-    def number_of_points(self):
+    def numberofpoints(self):
         """Количество собранных частиц"""
         return self.points
 
@@ -265,26 +271,29 @@ class Ghost(pygame.sprite.Sprite):
         super().__init__(all_sprites)
         self.add(ghosts)
 
-        self.anim = anim
+        self.anim = anim  # Список кадров призрака
         self.image = pygame.Surface((CELL, CELL))
         self.rect = pygame.Rect(x * CELL, y * CELL, CELL, CELL)
 
-        self.animCount = 0
-        self.speed = 5 + level / 5
-        self.course = 'left'
-        self.pasive = True
-        self.time_into_prison = 0
-        self.darw_score_time = 0  # Длительность надписи
+        self.animCount = 0  # Кадры анимации
+        self.speed = 5 + level / 5  # Скорость по уровню игрока
+        self.course = 'left'  # Направление
+        self.pasive = True  # Не действует анимация испуга
+        self.time_into_prison = 0  # Отчет до выхода из клетки
+        self.darw_score_time = 0  # Длительность надписи цены призрака
         self.rect_score = 0, 0  # Позиция для отображения надписи
 
     def update(self):
         self.animation()
+        # Отчет до выхода из клетки
         if self.time_into_prison:
             self.time_into_prison -= 0.1
             if self.time_into_prison < 1:
                 self.release_from_prison(9, 10)
+        # Отрисовка написи
         if self.darw_score_time >= 0:
             self.darw_score()
+
         if self.course == 'left':
             self.move(-self.speed, 0)
         elif self.course == 'right':
@@ -293,9 +302,9 @@ class Ghost(pygame.sprite.Sprite):
             self.move(0, -self.speed)
         elif self.course == 'down':
             self.move(0, self.speed)
-
-        if pygame.sprite.spritecollideany(self, player_g) and player.checking_pacman_energy()[0]:  # Призрак поймал
-            player.points += 400
+        # Призрак поймал пакменом и отправляется в клетку
+        if pygame.sprite.spritecollideany(self, player_g) and player.checking_pacman_energy()[0]:
+            player.points += 400  # Зачислене очков за призрака
             self.rect_score = self.rect.x + 20, self.rect.y - 10
             self.darw_score_time = 3
             self.into_prison()
@@ -303,8 +312,8 @@ class Ghost(pygame.sprite.Sprite):
     def move(self, xvel, yvel):
         """Движение призрака"""
         collideList = map
-
         self.rect.x += xvel
+        # Проверка на столкновение по горизонтали и вертикали
         for block in collideList:
             if self.rect.colliderect(block):
                 if xvel < 0:
@@ -314,7 +323,6 @@ class Ghost(pygame.sprite.Sprite):
                     self.rect.right = block.left
                     self.course = choice(['up', 'down'])
                 break
-
         self.rect.y += yvel
         for block in collideList:
             if self.rect.colliderect(block):
@@ -330,13 +338,13 @@ class Ghost(pygame.sprite.Sprite):
         self.image.fill('black')
         if self.animCount + 1 >= 10:
             self.animCount = 0
-        # Режим испуга
-        if player.checking_pacman_energy()[0] and not self.pasive:
-            self.speed = 3
-            if player.checking_pacman_energy()[1] >= 10:
+
+        if player.checking_pacman_energy()[0] and not self.pasive:  # Режим испуга
+            self.speed = 3  # Скорость снижается
+            if player.checking_pacman_energy()[1] >= 10:  # Отрисовка основной анимации испуга
                 self.image.blit(wall_charged[0][self.animCount // 5], (0, 0))
                 self.animCount += 1
-            else:
+            else:  # Отрисовка анимации мигания
                 if int(player.checking_pacman_energy()[1]) % 2 == 0:
                     self.image.blit(wall_charged[1][self.animCount // 5], (0, 0))
                     self.animCount += 1
@@ -348,16 +356,13 @@ class Ghost(pygame.sprite.Sprite):
             self.speed = 5 + level / 5
             if self.course == 'left':
                 self.image.blit(self.anim[3][self.animCount // 5], (0, 0))
-                self.animCount += 1
             elif self.course == 'right':
                 self.image.blit(self.anim[0][self.animCount // 5], (0, 0))
-                self.animCount += 1
             elif self.course == 'up':
                 self.image.blit(self.anim[2][self.animCount // 5], (0, 0))
-                self.animCount += 1
             elif self.course == 'down':
                 self.image.blit(self.anim[1][self.animCount // 5], (0, 0))
-                self.animCount += 1
+            self.animCount += 1
 
     def darw_score(self):
         """Отрисовка стоимости призрака"""
@@ -384,7 +389,7 @@ def button(x, y, text, s):
     """Создание кнопки"""
     global intro, running
     mouse = pygame.mouse.get_pos()
-    click = pygame.mouse.get_pressed()[0]
+    click = pygame.mouse.get_pressed(3)[0]
 
     font = pygame.font.Font("data\\fonts_i.ttf", s)
     textq = font.render(text, True, [255, 255, 255])
@@ -401,7 +406,7 @@ def button(x, y, text, s):
 def footer():
     """Отрисовка счета частиц, количество жизней"""
     font = pygame.font.Font("data\\fonts.ttf", 25)
-    text = font.render(f"SCRORE: {player.number_of_points() + all_results}", True, [255, 255, 255])
+    text = font.render(f"SCRORE: {player.numberofpoints() + all_results}", True, [255, 255, 255])
     screen.blit(text, (10, 670))
 
     text2 = font.render("LIVES", True, [255, 255, 255])
@@ -416,33 +421,33 @@ def footer():
     screen.blit(text, (260, 670))
 
 
-def Start_game():
+def startgame():
     """Завершение при отсутсвии жизней, начальный запуск, отрисовка карты со старыми значениями
      при присутсвии жизней, перезапуск после сбора всех частиц"""
     global player, Blinky, Pinky, Inky, Clyde, map, level, \
         running, restart, course, course_t, lives, all_results, time_en
 
-    if lives == 0:
+    if lives == 0:  # Завершение игры
         restart = True
         running = False
 
-    if new_start:
+    if new_start:  # Новая игра
         for i in all_sprites:
             i.kill()
         all_results = 0
         lives = 3
         level = 1
-        map = Board('data\\map.txt')
-    else:
+        map = board('data\\map.txt')
+    else:  # Если у игрока отняли жизнь(карта сохраняется)
         for i in ghosts:
             i.kill()
         player.kill()
-    if not new_start and len(point) == 0:
+    if not new_start and len(point) == 0:  # Переход на новый уровень
         level += 1
-        map = Board('data\\map.txt')
+        map = board('data\\map.txt')
 
-    time_en = 0
-    course, course_t = 'left', None
+    time_en = 0  # Время первого выхода призраков
+    course, course_t = 'left', None  # Основное и выбраннное напрвление игрока
     player = Player(9, 16)
     Blinky = Ghost(9, 8, walk_BLINKY)
     Blinky.pasive = False
@@ -463,26 +468,25 @@ def timer(number):
     sleep(1)
 
 
-def Add_in_table(name, score):
+def addintable(name, score):
     """Добавление игроков в топ"""
-    con = sqlite3.connect('data\list_of_results.db')
+    con = sqlite3.connect('data\\list_of_results.db')
     cur = con.cursor()
     result = cur.execute("""SELECT * FROM results""").fetchall()
 
     flag = False, 0
-    for i in result:
+    for i in result:  # Проверка на наличие игрока в списке
         if str(name) == str(i[0]):
             flag = True, i[1]
             break
     if flag[0]:
-        if int(flag[1]) < score:
+        if int(flag[1]) < score:  # Если у игрока в таблице счет меньше, он заменяется на набранный
             cur.execute(f"""UPDATE results
             SET SCORE = '{score}'
             WHERE PLAYER = '{str(name)}' """).fetchall()
             con.commit()
-    else:
+    else:  # Если игрока нет в списке
         cur.execute(f"""INSERT INTO results(PLAYER,SCORE) VALUES('{name}', {score})""").fetchall()
-
     con.commit()
     con.close()
 
@@ -498,7 +502,7 @@ def Intro():
                 intro = False
             if button(210, 200, 'PLAY', 60) is True:
                 new_start = True
-                Start_game()
+                startgame()
                 intro = False
                 running = True
             elif button(110, 280, 'HIGH SCORES', 60) is True:
@@ -513,6 +517,7 @@ def Runing():
     global cycle, running, time_en, course_t
     clock = pygame.time.Clock()
     while running:
+        # Цифры отчета в начале игры
         time_en += 1
         if time_en == 3:
             timer(3)
@@ -576,12 +581,12 @@ def Restart():
                 restart = False
             if button(180, 300, 'RESTART', 60):
                 new_start = True
-                Start_game()
+                startgame()
                 restart = False
                 running = True
-            # Button input name
+            # Кнопка введения имени игрока
             if input_button:
-                if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.type == pygame.MOUSEBUTTONDOWN:  # Подсветка и активация кнопки
                     if input_box.collidepoint(event.pos):
                         active = not active
                     else:
@@ -589,18 +594,19 @@ def Restart():
                     color = color_active if active else color_inactive
                 if event.type == pygame.KEYDOWN:
                     if active:
-                        if event.key == pygame.K_RETURN:
+                        if event.key == pygame.K_RETURN:  # Сохранение имени
                             color = color_inactive
                             input_button = False
                             if input_text != '  CREATE NICKNAME':
-                                Add_in_table(input_text, all_results)
+                                addintable(input_text, all_results)
                         elif event.key == pygame.K_BACKSPACE:
                             input_text = input_text[:-1]
-                        else:
+                        else:  # Убрать начальную надпись
                             if input_text == '  CREATE NICKNAME':
                                 input_text = ''
                             if len(input_text) < 18:
                                 input_text += event.unicode
+
             text = font.render(input_text, True, color)
             screen.blit(text, (input_box.x + 5, input_box.y + 5))
             pygame.draw.rect(screen, color, input_box, 2)
@@ -609,8 +615,9 @@ def Restart():
             font2 = pygame.font.Font("data\\fonts_i.ttf", 40)
             text = font2.render(f"Your SCRORE: {all_results}", True, [255, 255, 255])
             screen.blit(text, (size[0] / 2 - text.get_rect()[2] / 2, 170))
+
         if input_text == '  CREATE NICKNAME':
-            Add_in_table('[ ]', all_results)
+            addintable('[ ]', all_results)
         pygame.display.flip()
 
 
@@ -623,8 +630,8 @@ def Table():
     result.sort(key=lambda x: x[1])
 
     result = result[::-1][:10]
-    y = 100
     font = pygame.font.Font("data\\fonts_i.ttf", 30)
+    y = 100
 
     while table:
         for event in pygame.event.get():
@@ -642,8 +649,8 @@ def Table():
                 text = font.render(f"{result.index(i) + 1}.   {i[0]}", True, [255, 255, 255])
                 screen.blit(text, (70, y))
                 a = ''
-                for i, ch in enumerate(str(i[1])[::-1]):
-                    if i != 0 and i % 3 == 0:
+                for j, ch in enumerate(str(i[1])[::-1]):
+                    if j != 0 and j % 3 == 0:
                         a += ' ,'
                     a += ch
                 text = font.render(f"{a[::-1]}", True, [255, 255, 255])
@@ -660,18 +667,18 @@ if __name__ == '__main__':
     pygame.display.set_caption('Pacman')
     screen = pygame.display.set_mode(size)
 
-    # Анимации
-    walk = [load_image(30, 10, 160, 140), load_image(190, 10, 310, 140),
-            load_image(330, 10, 460, 140), load_image(190, 10, 310, 140)]
+    # Кадры анимации
+    walk = [loadimage(30, 10, 160, 140), loadimage(190, 10, 310, 140),
+            loadimage(330, 10, 460, 140), loadimage(190, 10, 310, 140)]
     walk_BLINKY = []
     walk_PINKY = []
     walk_INKY = []
     walk_CLYDE = []
-    wall_charged = [[load_image(390, 640, 530, 780), load_image(560, 640, 700, 780)],
-                    [load_image(730, 640, 870, 780), load_image(900, 640, 1040, 780)]]
+    wall_charged = [[loadimage(390, 640, 530, 780), loadimage(560, 640, 700, 780)],
+                    [loadimage(730, 640, 870, 780), loadimage(900, 640, 1040, 780)]]
     death_pacman = []
-    Enemies_walk()
-
+    # Нарезка картинок для спрайтов
+    enemieswalk()
     # Спрайты
     all_sprites = pygame.sprite.Group()
     player_g = pygame.sprite.Group()
@@ -680,19 +687,19 @@ if __name__ == '__main__':
     energy_point = pygame.sprite.Group()
     ghosts = pygame.sprite.Group()
 
-    all_results = 0
-    lives = 3
-    level = 1
-    time_en = 0
-    course, course_t = 'left', None
-    new_start = True
-    Start_game()
-
+    all_results = 0  # общий счет к концу игры
+    lives = 3  # Количество жизней игрока
+    level = 1  # Уровень сложности
+    time_en = 0  # Время начального выхода призраков из клетки
+    course, course_t = 'left', None  # Основное и желаемое направление игрока
+    new_start = True  # Флаг начала новой игры
+    startgame()  # Новая игра
+    # Отрисовываемое окно
     intro = True
     running = False
     restart = False
     table = False
-
+    # Отрисовываемое окно
     cycle = True
     while cycle:
         Intro()
